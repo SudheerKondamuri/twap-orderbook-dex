@@ -1,0 +1,21 @@
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install curl for healthcheck and RPC verification
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+RUN npm install
+
+COPY hardhat.config.js ./
+COPY contracts/ ./contracts/
+COPY scripts/ ./scripts/
+COPY keeper/ ./keeper/
+
+RUN npx hardhat compile
+RUN chmod +x ./keeper/entrypoint.sh
+
+EXPOSE 3001
+
+ENTRYPOINT ["./keeper/entrypoint.sh"]
