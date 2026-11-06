@@ -1,0 +1,54 @@
+services:
+  blockchain_node:
+    build:
+      context: .
+      dockerfile: Dockerfile.blockchain
+    container_name: twap_blockchain_node
+    ports:
+      - "8545:8545"
+    networks:
+      - twap_network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -X POST --data '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}' -H 'Content-Type: application/json' http://127.0.0.1:8545 | grep -q result || exit 1"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  keeper_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.keeper
+    container_name: twap_keeper_bot
+    ports:
+      - "3001:3001"
+    environment:
+      - RPC_URL=http://blockchain_node:8545
+      - DEPLOYER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - KEEPER_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - KEEPER_ADDRESS=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      - POLL_INTERVAL_MS=2000
+      - PORT=3001
+    depends_on:
+      blockchain_node:
+        condition: service_healthy
+    networks:
+      - twap_network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f http://127.0.0.1:3001/health | grep -q '\"status\":\"healthy\"' || exit 1"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+networks:
+  twap_network:
+    driver: bridge
